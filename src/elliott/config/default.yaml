@@ -1,0 +1,214 @@
+# =============================================================================
+# Elliott-Wellen-Analyzer – Standard-Konfiguration
+#
+# ALLE Schwellwerte, Toleranzen, Gewichte und Fibonacci-Verhältnisse liegen hier.
+# Eigene Konfigurationen müssen nur die abweichenden Werte enthalten; sie werden
+# rekursiv über diese Datei gelegt (siehe README, Abschnitt "Konfiguration").
+# =============================================================================
+
+data:
+  min_bars: 20                   # weniger Kerzen -> verständliche Fehlermeldung
+  log_mode: auto                 # auto | linear | log
+  log_auto_ratio: 3.0            # auto: log-Skala, wenn max(High)/min(Low) > Wert
+  ohlc_repair: true              # kleine OHLC-Inkonsistenzen automatisch korrigieren
+  ohlc_repair_max_rel: 0.02      # größere relative Verletzungen -> Fehler statt Reparatur
+  max_nan_ratio: 0.2             # Anteil unvollständiger Zeilen, ab dem abgebrochen wird
+  gap_warning_factor: 5.0        # Lücke > Faktor * Median-Abstand -> Warnung
+  unix_ms_threshold: 1.0e11      # numerische Zeitstempel darüber gelten als Millisekunden
+  unix_min_value: 1.0e8          # numerische Zeitstempel darunter sind keine Unix-Zeit
+  date_parse_min_success: 0.9    # Mindestanteil erfolgreich geparster Datumswerte
+  column_detect_min_numeric: 0.8 # Mindestanteil numerischer Werte in Preisspalten
+
+indicators:
+  atr_period: 14
+  rsi_period: 14
+
+pivots:
+  # Basisschwelle = mittlerer Grad (Suchgrad). "atr" = Vielfaches der ATR,
+  # "percent" = Prozent vom Extrempunkt.
+  threshold:
+    mode: atr
+    value: 2.0
+  # Multiplikatoren der Basisschwelle, von grob nach fein. Grobere Grade werden
+  # aus den Pivots des nächstfeineren Grades berechnet -> strikte Hierarchie.
+  degree_multipliers: [2.0, 1.0, 0.5]
+  degree_names: [grob, mittel, fein]
+
+search:
+  level: 1                       # Index des Suchgrades (0 = grob)
+  max_pivots: 90                 # zu viele Pivots -> nächstgröberer Grad
+  min_pivots: 4                  # zu wenige Pivots -> nächstfeinerer Grad
+  max_skip: 16                   # max. übersprungene Pivots pro Welle (Top-Level)
+  beam_width: 300                # Zustände pro Suchtiefe und Startpunkt
+  max_start_candidates: 24       # max. Startpunkte der Top-Level-Suche
+  max_start_lookback: 80         # Startpunkte höchstens so viele Pivots zurück
+  min_waves: 2                   # Mindestzahl Wellen für unvollständige Muster
+  rescore_top: 160               # so viele Kandidaten erhalten die volle Bewertung
+  max_scenarios: 40              # max. Szenarien im Ergebnis (vor Top-N-Auswahl)
+  subwave_depth: 1               # Rekursionstiefe der Subwellen-Validierung
+  subwave_max_skip: 40
+  subwave_beam_width: 40
+  subwave_max_inner_pivots: 60   # mehr innere Pivots -> gröberer Grad für die Prüfung
+  subwave_min_inner_motive: 4    # min. innere Pivots für eine 5er-Struktur
+  subwave_min_inner_corrective: 2
+  irregular_start_max_excess: 0.3  # Korrekturwellen: Überschreitung des Startpunkts (irreguläre B) relativ zur Wellenlänge
+  dedup_bar_tol: 3               # Zählungen gelten als gleich, wenn alle Wellenenden
+  dedup_price_tol: 0.01          #   innerhalb dieser Toleranzen liegen (Preis relativ)
+  time_budget_s: 8.0             # Suche bricht danach ab (Ergebnis wird markiert)
+
+rules:
+  equality_tol: 1.0e-9           # numerische Toleranz für Gleichheitsvergleiche
+  flat_b_min_retrace: 0.9        # Flat: B retraced mindestens 90 % von A
+  flat_b_max_retrace: 2.0        # Plausibilitätsgrenze für B
+  flat_regular_b_max: 1.05       # Regular Flat: B <= 105 % von A
+  flat_expanded_b_min: 1.05      # Expanded/Running Flat: B > 105 % von A
+  flat_regular_c_shortfall: 0.1  # Regular Flat: C darf das A-Ende um max. 10 % von A verfehlen
+  flat_running_c_min: 0.5        # Running Flat: C mindestens 50 % von A
+  triangle_line_tol: 0.05        # "horizontal" / "konvergent" relativ zu Länge A
+  diagonal_require_overlap: true # Diagonal: Welle 4 muss in Welle 1 eindringen
+  diagonal_trendline_tol: 0.0    # Toleranz für Konvergenz/Divergenz der Trendlinien
+  combination_x_max: 2.0         # X-Welle max. 200 % der vorherigen Korrekturwelle
+  combination_max_overshoot: 0.618  # Y/Z endet max. 61,8 % der W-Länge jenseits des W-Endes
+  combination_max_triangles: 1
+
+fib:
+  tolerance: 0.03                # ±3 % relativ: volle Punktzahl
+  decay_sigma: 0.08              # danach Gauß-Abfall mit dieser Breite (relativ)
+
+guidelines:
+  weights:
+    impulse_w2_retrace: 1.0
+    impulse_w4_retrace: 1.0
+    impulse_alternation: 1.0
+    impulse_extension: 1.0
+    impulse_w3_ratio: 1.5
+    impulse_w5_ratio: 1.0
+    impulse_channel: 0.5
+    impulse_volume: 0.5
+    impulse_momentum: 0.3
+    impulse_time_w2_w4: 0.5
+    diagonal_ratios: 1.0
+    zigzag_b_retrace: 1.0
+    zigzag_c_ratio: 1.5
+    double_zigzag_y_ratio: 1.0
+    flat_b_ratio: 1.0
+    flat_c_ratio: 1.0
+    triangle_ratios: 1.5
+    combination_sideways: 1.0
+    proportionality: 1.0
+    subwave_structure: 2.0
+    completeness: 2.5
+  params:
+    impulse_w2_range: [0.5, 0.618]
+    impulse_w4_range: [0.236, 0.382]
+    impulse_w3_targets: [1.618, 2.618, 1.0]
+    impulse_w5_targets_w1: [1.0, 1.618]
+    impulse_w5_targets_w1w3: [0.618]
+    extension_ratio: 1.618
+    extension_non_w3_factor: 0.8
+    alternation_depth_scale: 0.25
+    alternation_time_ratio: 1.5
+    channel_sigma: 0.2
+    time_w2_w4_max_ratio: 3.0
+    diagonal_contracting_targets: [0.618, 0.786]
+    diagonal_expanding_targets: [1.272, 1.618]
+    zigzag_b_range: [0.382, 0.786]
+    zigzag_c_targets: [1.0, 0.618, 1.618]
+    double_zigzag_y_targets: [1.0, 0.618, 1.618]
+    flat_regular_b_targets: [1.0]
+    flat_regular_c_targets: [1.0, 1.05]
+    flat_expanded_b_range: [1.236, 1.382]
+    flat_expanded_c_targets: [1.618]
+    flat_running_c_targets: [0.618, 0.786]
+    triangle_contracting_targets: [0.618]
+    triangle_expanding_targets: [1.618]
+    combination_sideways_sigma: 0.25
+    proportion_max_time_ratio: 8.0
+    proportion_min_price_ratio: 0.08
+    proportion_decay: 3.0
+    momentum_min_rsi_diff: 2.0
+  penalties:                     # Punktabzug (0–100-Skala) für seltene Muster
+    truncation: 15.0
+    running_flat: 10.0
+    expanding_triangle: 10.0
+    expanding_diagonal: 5.0
+  complexity:                    # Occam: Punktabzug = weight * Komplexität
+    weight: 1.0
+    by_pattern:
+      impulse: 0
+      leading_diagonal: 2
+      ending_diagonal: 2
+      zigzag: 0
+      double_zigzag: 3
+      triple_zigzag: 5
+      flat_regular: 1
+      flat_expanded: 1
+      flat_running: 2
+      triangle_contracting: 2
+      triangle_barrier: 2
+      triangle_expanding: 3
+      combination_wxy: 4
+      combination_wxyxz: 6
+
+scoring:
+  softmax_temperature: 8.0       # in Score-Punkten; kleiner = spitzere Verteilung
+  top_n: 3
+
+projection:
+  targets:
+    impulse_w2: [0.5, 0.618, 0.382, 0.786]     # Retracement von W1
+    impulse_w3: [1.618, 2.618, 1.0]            # Extension von W1 ab Ende W2
+    impulse_w4: [0.382, 0.236, 0.5]            # Retracement von W3
+    impulse_w5_w1: [1.0, 1.618, 0.618]         # Extension von W1 ab Ende W4
+    impulse_w5_w1w3: [0.618]                   # Extension von (W1..W3) ab Ende W4
+    diagonal_retrace: [0.618, 0.786, 0.5]      # Welle 2/4 eines Diagonals
+    diagonal_next_contracting: [0.618, 0.786]  # × vorherige gleichgerichtete Welle
+    diagonal_next_expanding: [1.272, 1.618]
+    zigzag_b: [0.5, 0.618, 0.382, 0.786]
+    zigzag_c: [1.0, 1.618, 0.618]
+    flat_b: [1.0, 1.236, 1.382]
+    flat_c: [1.0, 1.272, 1.618]
+    triangle_next: [0.618, 0.786]              # × vorherige gleichgerichtete Welle
+    triangle_first: [0.618, 0.786]             # Welle B eines Dreiecks, Retracement von A
+    combination_x: [0.5, 0.618, 0.382]
+    combination_next: [1.0, 0.618, 1.618]      # Y ≈ W, Z ≈ Y
+    after_motive: [0.382, 0.5, 0.618]          # Korrektur des gesamten Impulses
+    after_ending_diagonal: [1.0, 0.786, 0.618] # Rücklauf zum Diagonal-Start
+    after_triangle: [1.0, 0.618, 1.618]        # Thrust ≈ Länge A (breiteste Stelle)
+    after_correction: [1.0, 1.618, 0.618]      # Neue Welle ≈ Länge der Korrektur
+    first_wave: [0.618, 1.0, 1.618]            # ohne Bezug: × vorherige Gegenbewegung
+  zone_half_width_rel: 0.004     # halbe Zonenbreite relativ zum Preis
+  confluence_tol_rel: 0.012      # Ziele näher als das (relativ) werden zusammengefasst
+  max_zones: 3
+  time_ratios: [0.618, 1.0, 1.618]
+  invalidation_span: 3.0         # Suchbereich für Invalidierung: × Musterhöhe
+  invalidation_iterations: 60    # Bisektionsschritte
+  path_ratio_index: 0            # welches Ziel der projizierte Pfad ansteuert (0 = Hauptziel)
+
+plotting:
+  scenario_colors: ["#1f77b4", "#ff7f0e", "#2ca02c", "#9467bd", "#8c564b", "#e377c2", "#17becf", "#bcbd22"]
+  invalidation_color: "#d62728"
+  target_opacity: 0.18
+  candle_up_color: "#26a69a"
+  candle_down_color: "#ef5350"
+  pivot_colors: ["#000000", "#555555", "#aaaaaa"]
+  label_font_sizes: [15, 12, 10, 9]
+  top_degree: 0                  # Label-Stil des Top-Levels (0 = ①/Ⓐ)
+  degree_labels:
+    motive:
+      - ["①", "②", "③", "④", "⑤"]
+      - ["(1)", "(2)", "(3)", "(4)", "(5)"]
+      - ["1", "2", "3", "4", "5"]
+      - ["i", "ii", "iii", "iv", "v"]
+    corrective:
+      - ["Ⓐ", "Ⓑ", "Ⓒ", "Ⓓ", "Ⓔ"]
+      - ["(a)", "(b)", "(c)", "(d)", "(e)"]
+      - ["a", "b", "c", "d", "e"]
+      - ["a", "b", "c", "d", "e"]
+    combination:
+      - ["Ⓦ", "Ⓧ", "Ⓨ", "Ⓧ", "Ⓩ"]
+      - ["(w)", "(x)", "(y)", "(x)", "(z)"]
+      - ["w", "x", "y", "x", "z"]
+      - ["w", "x", "y", "x", "z"]
+  height: 780
+  volume_row_height: 0.2

@@ -1,0 +1,1 @@
+"""Pivot (turning point) detection."""
