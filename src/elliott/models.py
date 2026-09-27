@@ -86,6 +86,28 @@ PATTERN_NAMES_DE: dict[PatternType, str] = {
 }
 
 
+_MOTIVE_LABELS = ("1", "2", "3", "4", "5")
+_ABC = ("A", "B", "C")
+_ABCDE = ("A", "B", "C", "D", "E")
+
+PATTERN_LABELS: dict[PatternType, tuple[str, ...]] = {
+    PatternType.IMPULSE: _MOTIVE_LABELS,
+    PatternType.LEADING_DIAGONAL: _MOTIVE_LABELS,
+    PatternType.ENDING_DIAGONAL: _MOTIVE_LABELS,
+    PatternType.ZIGZAG: _ABC,
+    PatternType.DOUBLE_ZIGZAG: ("W", "X", "Y"),
+    PatternType.TRIPLE_ZIGZAG: ("W", "X", "Y", "X", "Z"),
+    PatternType.FLAT_REGULAR: _ABC,
+    PatternType.FLAT_EXPANDED: _ABC,
+    PatternType.FLAT_RUNNING: _ABC,
+    PatternType.TRIANGLE_CONTRACTING: _ABCDE,
+    PatternType.TRIANGLE_BARRIER: _ABCDE,
+    PatternType.TRIANGLE_EXPANDING: _ABCDE,
+    PatternType.COMBINATION_WXY: ("W", "X", "Y"),
+    PatternType.COMBINATION_WXYXZ: ("W", "X", "Y", "X", "Z"),
+}
+
+
 class WaveClass(str, Enum):
     """Motive (trend) or corrective (counter-trend) wave."""
 

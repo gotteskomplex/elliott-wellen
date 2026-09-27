@@ -125,7 +125,7 @@ guidelines:
     combination_sideways_sigma: 0.25
     proportion_max_time_ratio: 8.0
     proportion_min_price_ratio: 0.08
-    proportion_decay: 3.0
+    proportion_decay: 1.5          # Exponent des Abfalls jenseits der Grenzen
     momentum_min_rsi_diff: 2.0
   penalties:                     # Punktabzug (0–100-Skala) für seltene Muster
     truncation: 15.0
