@@ -250,6 +250,8 @@ class Projection(_Model):
     time_window: TimeWindow | None = None
     path: list[tuple[datetime, float]] = Field(default_factory=list)
     sub_position: str = ""
+    current_subcount: WaveCount | None = None
+    target_wave: str = ""
 
 
 class Scenario(_Model):
