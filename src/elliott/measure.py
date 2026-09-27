@@ -58,6 +58,10 @@ class CountView:
         last_open: the last wave ends at the provisional right-edge pivot and
             may still extend; "must reach" rules for it are deferred.
         sub_patterns: known pattern types of the subwaves (``None`` = unknown).
+        prior: length (measurement space) of the opposite move that ended at
+            the start point P0 – the move a corrective pattern corrects.
+        running: the last wave is known to be still in progress (its current
+            length says nothing about its final length).
     """
 
     pattern: PatternType
@@ -68,6 +72,8 @@ class CountView:
     n: int
     last_open: bool = False
     sub_patterns: tuple[PatternType | None, ...] | None = None
+    prior: float | None = None
+    running: bool = False
 
     @property
     def k(self) -> int:
@@ -101,12 +107,18 @@ class CountView:
     def price(self, point: int) -> float:
         return self.raw[point]
 
+    def head(self, waves: int) -> "CountView":
+        """View restricted to the first ``waves`` waves (all completed)."""
+        m = waves + 1
+        subs = self.sub_patterns[:waves] if self.sub_patterns is not None else None
+        return CountView(self.pattern, self.d, self.x[:m], self.t[:m], self.raw[:m], self.n, False, subs, self.prior, False)
+
     def with_points(self, x: tuple[float, ...], t: tuple[int, ...], raw: tuple[float, ...], last_open: bool) -> "CountView":
         """Copy with replaced points (used for hypothetical extensions)."""
         subs = self.sub_patterns
         if subs is not None:
             subs = tuple(subs[: len(x) - 1]) + (None,) * max(0, len(x) - 1 - len(subs))
-        return CountView(self.pattern, self.d, x, t, raw, self.n, last_open, subs)
+        return CountView(self.pattern, self.d, x, t, raw, self.n, last_open, subs, self.prior, self.running)
 
 
 def make_view(
@@ -118,6 +130,7 @@ def make_view(
     raw: list[float] | tuple[float, ...],
     last_open: bool = False,
     sub_patterns: tuple[PatternType | None, ...] | None = None,
+    prior: float | None = None,
 ) -> CountView:
     """Build a :class:`CountView` from transformed prices ``tp``."""
     return CountView(
@@ -129,4 +142,5 @@ def make_view(
         n=n,
         last_open=last_open,
         sub_patterns=sub_patterns,
+        prior=prior,
     )

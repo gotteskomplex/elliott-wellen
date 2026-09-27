@@ -110,6 +110,8 @@ class SearchConfig(_Strict):
     subwave_max_inner_pivots: int = Field(ge=4)
     subwave_min_inner_motive: int = Field(ge=2)
     subwave_min_inner_corrective: int = Field(ge=1)
+    subwave_validated_base: float = Field(ge=0, le=1)
+    subwave_fit_weight: float = Field(ge=0, le=1)
     irregular_start_max_excess: float = Field(ge=0)
     dedup_bar_tol: int = Field(ge=0)
     dedup_price_tol: float = Field(ge=0)

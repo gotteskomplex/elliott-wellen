@@ -25,8 +25,16 @@ SHARP = frozenset({PatternType.ZIGZAG, PatternType.DOUBLE_ZIGZAG, PatternType.TR
 
 @dataclass(frozen=True, slots=True)
 class GuidelineResult:
+    """Guideline outcome.
+
+    ``value`` is ``None`` if the guideline does not apply. ``pending`` marks a
+    guideline that *would* apply to the complete pattern but cannot be judged
+    yet (waves missing or still running); it is scored neutrally.
+    """
+
     value: float | None
     reason: str
+    pending: bool = False
 
 
 @dataclass
@@ -37,6 +45,7 @@ class GuideContext:
     rsi: np.ndarray | None = None
     subwave_values: tuple[float | None, ...] | None = None
     subwave_notes: tuple[str, ...] = field(default_factory=tuple)
+    reference_range: float | None = None
 
 
 GuidelineFn = Callable[[CountView, GuideContext, Settings], GuidelineResult | None]
@@ -56,6 +65,10 @@ def _na(reason: str) -> GuidelineResult:
     return GuidelineResult(None, reason)
 
 
+def _pending(reason: str) -> GuidelineResult:
+    return GuidelineResult(None, f"ausstehend – {reason}", pending=True)
+
+
 def _lab(v: CountView, wave: int) -> str:
     return PATTERN_LABELS[v.pattern][wave - 1]
 
@@ -71,7 +84,7 @@ def _targets_text(targets: list[float]) -> str:
 
 def g_impulse_w2_retrace(v: CountView, ctx: GuideContext, cfg: Settings) -> GuidelineResult:
     if not v.has(2):
-        return _na("Welle 2 fehlt")
+        return _pending("Welle 2 fehlt")
     lo, hi = cfg.guidelines.p("impulse_w2_range")
     r = v.L(2) / v.L(1)
     s = range_score(r, lo, hi, cfg.fib)
@@ -80,7 +93,7 @@ def g_impulse_w2_retrace(v: CountView, ctx: GuideContext, cfg: Settings) -> Guid
 
 def g_impulse_w4_retrace(v: CountView, ctx: GuideContext, cfg: Settings) -> GuidelineResult:
     if not v.has(4):
-        return _na("Welle 4 fehlt")
+        return _pending("Welle 4 fehlt")
     lo, hi = cfg.guidelines.p("impulse_w4_range")
     r = v.L(4) / v.L(3)
     s = range_score(r, lo, hi, cfg.fib)
@@ -89,7 +102,7 @@ def g_impulse_w4_retrace(v: CountView, ctx: GuideContext, cfg: Settings) -> Guid
 
 def g_impulse_alternation(v: CountView, ctx: GuideContext, cfg: Settings) -> GuidelineResult:
     if not v.has(4):
-        return _na("Welle 4 fehlt")
+        return _pending("Welle 4 fehlt")
     p = cfg.guidelines.params
     r2, r4 = v.L(2) / v.L(1), v.L(4) / v.L(3)
     parts: list[float] = [min(1.0, abs(r2 - r4) / p["alternation_depth_scale"])]
@@ -108,7 +121,7 @@ def g_impulse_alternation(v: CountView, ctx: GuideContext, cfg: Settings) -> Gui
 
 def g_impulse_extension(v: CountView, ctx: GuideContext, cfg: Settings) -> GuidelineResult:
     if not v.has(5):
-        return _na("Welle 5 fehlt")
+        return _pending("Welle 5 fehlt")
     p = cfg.guidelines.params
     lengths = {1: v.L(1), 3: v.L(3), 5: v.L(5)}
     order = sorted(lengths, key=lambda w: lengths[w], reverse=True)
@@ -124,7 +137,7 @@ def g_impulse_extension(v: CountView, ctx: GuideContext, cfg: Settings) -> Guide
 
 def g_impulse_w3_ratio(v: CountView, ctx: GuideContext, cfg: Settings) -> GuidelineResult:
     if not v.has(3):
-        return _na("Welle 3 fehlt")
+        return _pending("Welle 3 fehlt")
     targets = cfg.guidelines.p("impulse_w3_targets")
     r = v.L(3) / v.L(1)
     s, t = fib_score(r, targets, cfg.fib)
@@ -133,7 +146,7 @@ def g_impulse_w3_ratio(v: CountView, ctx: GuideContext, cfg: Settings) -> Guidel
 
 def g_impulse_w5_ratio(v: CountView, ctx: GuideContext, cfg: Settings) -> GuidelineResult:
     if not v.has(5):
-        return _na("Welle 5 fehlt")
+        return _pending("Welle 5 fehlt")
     p = cfg.guidelines.params
     r1 = v.L(5) / v.L(1)
     s1, t1 = fib_score(r1, p["impulse_w5_targets_w1"], cfg.fib)
@@ -147,7 +160,7 @@ def g_impulse_w5_ratio(v: CountView, ctx: GuideContext, cfg: Settings) -> Guidel
 
 def g_impulse_channel(v: CountView, ctx: GuideContext, cfg: Settings) -> GuidelineResult:
     if not v.has(5):
-        return _na("Welle 5 fehlt")
+        return _pending("Welle 5 fehlt")
     if v.t[4] == v.t[2]:
         return _na("Kanal nicht bestimmbar")
     slope = (v.x[4] - v.x[2]) / (v.t[4] - v.t[2])
@@ -167,7 +180,7 @@ def g_impulse_volume(v: CountView, ctx: GuideContext, cfg: Settings) -> Guidelin
     if ctx.volume is None:
         return _na("Keine Volumendaten – neutral")
     if not v.has(5):
-        return _na("Welle 5 fehlt")
+        return _pending("Welle 5 fehlt")
     v3 = _mean_volume(ctx.volume, v.t[2], v.t[3])
     v5 = _mean_volume(ctx.volume, v.t[4], v.t[5])
     if v3 <= 0 and v5 <= 0:
@@ -180,7 +193,7 @@ def g_impulse_momentum(v: CountView, ctx: GuideContext, cfg: Settings) -> Guidel
     if ctx.rsi is None:
         return _na("Kein Momentum-Indikator")
     if not v.has(5):
-        return _na("Welle 5 fehlt")
+        return _pending("Welle 5 fehlt")
     r3, r5 = float(ctx.rsi[v.t[3]]), float(ctx.rsi[v.t[5]])
     min_diff = cfg.guidelines.p("momentum_min_rsi_diff")
     diverges = (r5 < r3 - min_diff) if v.d > 0 else (r5 > r3 + min_diff)
@@ -192,7 +205,7 @@ def g_impulse_momentum(v: CountView, ctx: GuideContext, cfg: Settings) -> Guidel
 
 def g_impulse_time_w2_w4(v: CountView, ctx: GuideContext, cfg: Settings) -> GuidelineResult:
     if not v.has(4):
-        return _na("Welle 4 fehlt")
+        return _pending("Welle 4 fehlt")
     d2, d4 = v.dur(2), v.dur(4)
     ratio = max(d2, d4) / min(d2, d4)
     limit = cfg.guidelines.p("time_w2_w4_max_ratio")
@@ -207,7 +220,7 @@ def g_impulse_time_w2_w4(v: CountView, ctx: GuideContext, cfg: Settings) -> Guid
 
 def g_diagonal_ratios(v: CountView, ctx: GuideContext, cfg: Settings) -> GuidelineResult:
     if not v.has(3):
-        return _na("Welle 3 fehlt")
+        return _pending("Welle 3 fehlt")
     contracting = v.L(3) < v.L(1)
     targets = cfg.guidelines.p("diagonal_contracting_targets" if contracting else "diagonal_expanding_targets")
     scores = [fib_score(v.L(3) / v.L(1), targets, cfg.fib)[0]]
@@ -224,7 +237,7 @@ def g_diagonal_ratios(v: CountView, ctx: GuideContext, cfg: Settings) -> Guideli
 
 def g_zigzag_b_retrace(v: CountView, ctx: GuideContext, cfg: Settings) -> GuidelineResult:
     if not v.has(2):
-        return _na("B fehlt")
+        return _pending("B fehlt")
     lo, hi = cfg.guidelines.p("zigzag_b_range")
     r = v.L(2) / v.L(1)
     return GuidelineResult(range_score(r, lo, hi, cfg.fib), f"B retraced {fmt_pct(r)} von A (typisch {fmt_pct(lo)}–{fmt_pct(hi)})")
@@ -232,7 +245,7 @@ def g_zigzag_b_retrace(v: CountView, ctx: GuideContext, cfg: Settings) -> Guidel
 
 def g_zigzag_c_ratio(v: CountView, ctx: GuideContext, cfg: Settings) -> GuidelineResult:
     if not v.has(3):
-        return _na("C fehlt")
+        return _pending("C fehlt")
     targets = cfg.guidelines.p("zigzag_c_targets")
     r = v.L(3) / v.L(1)
     s, _ = fib_score(r, targets, cfg.fib)
@@ -241,7 +254,7 @@ def g_zigzag_c_ratio(v: CountView, ctx: GuideContext, cfg: Settings) -> Guidelin
 
 def g_double_zigzag_y_ratio(v: CountView, ctx: GuideContext, cfg: Settings) -> GuidelineResult:
     if not v.has(3):
-        return _na("Y fehlt")
+        return _pending("Y fehlt")
     targets = cfg.guidelines.p("double_zigzag_y_targets")
     scores = [fib_score(v.L(3) / v.L(1), targets, cfg.fib)[0]]
     text = f"Y = {fmt_ratio(v.L(3) / v.L(1))} × W"
@@ -253,7 +266,7 @@ def g_double_zigzag_y_ratio(v: CountView, ctx: GuideContext, cfg: Settings) -> G
 
 def g_flat_b_ratio(v: CountView, ctx: GuideContext, cfg: Settings) -> GuidelineResult:
     if not v.has(2):
-        return _na("B fehlt")
+        return _pending("B fehlt")
     r = v.L(2) / v.L(1)
     if v.pattern is PatternType.FLAT_REGULAR:
         targets = cfg.guidelines.p("flat_regular_b_targets")
@@ -265,7 +278,7 @@ def g_flat_b_ratio(v: CountView, ctx: GuideContext, cfg: Settings) -> GuidelineR
 
 def g_flat_c_ratio(v: CountView, ctx: GuideContext, cfg: Settings) -> GuidelineResult:
     if not v.has(3):
-        return _na("C fehlt")
+        return _pending("C fehlt")
     key = {
         PatternType.FLAT_REGULAR: "flat_regular_c_targets",
         PatternType.FLAT_EXPANDED: "flat_expanded_c_targets",
@@ -279,7 +292,7 @@ def g_flat_c_ratio(v: CountView, ctx: GuideContext, cfg: Settings) -> GuidelineR
 
 def g_triangle_ratios(v: CountView, ctx: GuideContext, cfg: Settings) -> GuidelineResult:
     if not v.has(3):
-        return _na("C fehlt")
+        return _pending("C fehlt")
     expanding = v.pattern is PatternType.TRIANGLE_EXPANDING
     targets = cfg.guidelines.p("triangle_expanding_targets" if expanding else "triangle_contracting_targets")
     scores, parts = [], []
@@ -292,7 +305,7 @@ def g_triangle_ratios(v: CountView, ctx: GuideContext, cfg: Settings) -> Guideli
 
 def g_combination_sideways(v: CountView, ctx: GuideContext, cfg: Settings) -> GuidelineResult:
     if not v.has(3):
-        return _na("Y fehlt")
+        return _pending("Y fehlt")
     sigma = cfg.guidelines.p("combination_sideways_sigma")
     devs = [abs(v.x[3] - v.x[1]) / v.L(1)]
     if v.has(5):
@@ -311,7 +324,7 @@ def g_combination_sideways(v: CountView, ctx: GuideContext, cfg: Settings) -> Gu
 
 def g_proportionality(v: CountView, ctx: GuideContext, cfg: Settings) -> GuidelineResult:
     if v.k < 2:
-        return _na("Zu wenige Wellen")
+        return _pending("Zu wenige Wellen")
     p = cfg.guidelines.params
     durs = [v.dur(i) for i in range(1, v.k + 1)]
     lens = [v.L(i) for i in range(1, v.k + 1)]
@@ -329,19 +342,58 @@ def g_proportionality(v: CountView, ctx: GuideContext, cfg: Settings) -> Guideli
 def g_subwave_structure(v: CountView, ctx: GuideContext, cfg: Settings) -> GuidelineResult:
     vals = ctx.subwave_values
     if not vals:
-        return _na("Subwellen nicht validiert (keine feineren Pivots)")
-    known = [x for x in vals if x is not None]
-    if not known:
-        return _na("Subwellen nicht validiert (keine feineren Pivots)")
-    ok = sum(1 for x in known if x >= 0.5)
+        return _na("Subwellen nicht geprüft")
+    unknown = cfg.guidelines.p("subwave_not_validated_value")
+    scored: list[float] = []
+    n_ok = n_fail = n_unknown = 0
+    for i, val in enumerate(vals, start=1):
+        if v.is_open(i):
+            continue  # running wave: no verdict
+        if val is None:
+            n_unknown += 1
+            scored.append(unknown)
+        else:
+            scored.append(val)
+            n_ok += val >= 0.5
+            n_fail += val < 0.5
+    if not scored:
+        return _na("Nur die laufende Welle vorhanden")
     return GuidelineResult(
-        sum(known) / len(known),
-        f"{ok} von {len(known)} prüfbaren Wellen mit passender Binnenstruktur ({len(vals) - len(known)} nicht validiert)",
+        sum(scored) / len(scored),
+        f"{n_ok} Wellen mit passender Binnenstruktur, {n_fail} nicht bestätigt, {n_unknown} nicht validiert",
     )
 
 
+def g_context(v: CountView, ctx: GuideContext, cfg: Settings) -> GuidelineResult:
+    """Corrections move against the larger trend: they are smaller than the
+    move they correct (the opposite move that ended at the pattern start)."""
+    from elliott.patterns import get_spec  # local import (patterns import guidelines)
+
+    if get_spec(v.pattern).is_motive:
+        return _na("Motive Welle – Trendrichtung")
+    if v.prior is None or v.prior <= 0:
+        return _pending("Keine Vorbewegung bekannt (Datenbeginn)")
+    net = max(abs(v.x[i] - v.x[0]) for i in range(1, v.k + 1))
+    r = net / v.prior
+    limit = cfg.guidelines.p("context_max_ratio")
+    s = 1.0 if r <= limit else (limit / r) ** cfg.guidelines.p("context_decay")
+    return GuidelineResult(s, f"Korrektur umfasst {fmt_pct(r)} der vorherigen Gegenbewegung (≤ {fmt_pct(limit)} erwartet)")
+
+
+def g_significance(v: CountView, ctx: GuideContext, cfg: Settings) -> GuidelineResult:
+    """Counts that explain a larger part of the analysed range are preferred."""
+    if not ctx.reference_range:
+        return _na("Kein Referenzbereich")
+    span = max(v.x) - min(v.x)
+    r = min(1.0, span / ctx.reference_range)
+    target = cfg.guidelines.p("significance_target")
+    return GuidelineResult(min(1.0, r / target), f"Muster umfasst {fmt_pct(r)} der Kursspanne im Suchfenster")
+
+
 def g_completeness(v: CountView, ctx: GuideContext, cfg: Settings) -> GuidelineResult:
-    return GuidelineResult(v.k / v.n, f"{v.k} von {v.n} Wellen erkennbar")
+    done = v.k - (cfg.guidelines.p("running_wave_credit") if v.running else 0.0)
+    extra = " (letzte Welle läuft noch)" if v.running else ""
+    return GuidelineResult(done / v.n, f"{v.k} von {v.n} Wellen erkennbar{extra}")
 
 
 # ---------------------------------------------------------------------------
@@ -375,5 +427,7 @@ COMBINATION_GUIDES = (Guideline("combination_sideways", "Seitwärtsverlauf", g_c
 GENERAL_GUIDES = (
     Guideline("proportionality", "Proportionalität", g_proportionality),
     Guideline("subwave_structure", "Subwellen-Struktur", g_subwave_structure),
+    Guideline("context", "Kontext (Korrektur gegen Trend)", g_context),
+    Guideline("significance", "Signifikanz", g_significance),
     Guideline("completeness", "Vollständigkeit", g_completeness),
 )

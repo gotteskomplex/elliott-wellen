@@ -595,6 +595,11 @@ def first_failure(rules: Iterable[Rule], view: CountView, cfg: RulesConfig) -> t
     return None
 
 
+def has_deferred(rules: Iterable[Rule], view: CountView, cfg: RulesConfig) -> bool:
+    """True if any rule is deferred (the open last wave still has to reach a level)."""
+    return any(rule(view, cfg).deferred for rule in rules)
+
+
 def passes(rules: Iterable[Rule], view: CountView, cfg: RulesConfig) -> bool:
     """True if no rule fails."""
     return first_failure(rules, view, cfg) is None

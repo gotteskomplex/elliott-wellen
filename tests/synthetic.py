@@ -22,9 +22,9 @@ Leg = tuple[float, float, str]
 
 TEMPLATES: dict[str, list[Leg]] = {
     # Textbook impulse: W2 = 61,8 % (zigzag), W3 = 1,618 × W1, W4 = 38,2 % (flat), W5 = W1.
-    "impulse": [(1.0, 1.0, "impulse"), (-0.618, 0.6, "zigzag"), (1.618, 1.5, "impulse"), (-0.618, 1.0, "flat"), (1.0, 1.0, "impulse")],
-    "impulse_ext3": [(1.0, 1.0, "impulse"), (-0.618, 0.6, "zigzag"), (2.618, 2.2, "impulse"), (-1.0, 1.1, "flat"), (1.0, 1.0, "impulse")],
-    "impulse_truncated": [(1.0, 1.0, "impulse"), (-0.618, 0.6, "zigzag"), (1.618, 1.5, "impulse"), (-0.618, 1.0, "flat"), (0.5, 0.6, "impulse")],
+    "impulse": [(1.0, 1.0, "impulse"), (-0.618, 0.6, "zigzag"), (1.618, 1.5, "impulse"), (-0.618, 1.0, "flat_regular"), (1.0, 1.0, "impulse")],
+    "impulse_ext3": [(1.0, 1.0, "impulse"), (-0.618, 0.6, "zigzag"), (2.618, 2.2, "impulse"), (-1.0, 1.1, "flat_regular"), (1.0, 1.0, "impulse")],
+    "impulse_truncated": [(1.0, 1.0, "impulse"), (-0.618, 0.6, "zigzag"), (1.618, 1.5, "impulse"), (-0.618, 1.0, "flat_regular"), (0.5, 0.6, "impulse")],
     "zigzag": [(1.0, 1.0, "impulse"), (-0.5, 0.6, "zigzag"), (1.0, 1.0, "impulse")],
     "flat_regular": [(1.0, 1.0, "zigzag"), (-0.95, 1.0, "zigzag"), (1.0, 1.0, "impulse")],
     "flat_expanded": [(1.0, 1.0, "zigzag"), (-1.236, 1.0, "zigzag"), (1.618, 1.2, "impulse")],
@@ -77,6 +77,8 @@ def make_pattern(
     lead_in: int = 0,
     tail: int = 0,
     freq: str = "D",
+    prefix: float = 0.0,
+    prefix_bars: int | None = None,
 ) -> SyntheticSeries:
     """Create a synthetic series containing ``pattern``.
 
@@ -89,11 +91,23 @@ def make_pattern(
         noise: Gaussian noise std as fraction of ``height``.
         lead_in: bars of flat-ish data before the pattern starts.
         tail: bars after the pattern end (small drift against the last wave).
+        prefix: size (fraction of ``height``) of an impulsive move *into* the
+            pattern start, against the pattern direction – the move a
+            correction corrects. 0 = the series starts at the pattern start.
+        prefix_bars: duration of the prefix move (default ``bars // 2``).
     """
     rng = np.random.default_rng(seed)
     net_move = direction * height
-    raw = _build(pattern, 0.0, start_price, net_move, float(bars), depth)
-    waypoints: list[tuple[float, float, int]] = [(0.0, start_price, depth)] + raw
+    waypoints: list[tuple[float, float, int]] = []
+    t_start = 0.0
+    if prefix > 0:
+        pre_bars = float(prefix_bars if prefix_bars is not None else bars // 2)
+        pre_start = start_price + direction * prefix * height
+        pre = _build("impulse", 0.0, pre_start, -direction * prefix * height, pre_bars, depth)
+        waypoints = [(0.0, pre_start, depth + 1)] + [(t, p, lvl if lvl != depth else depth + 1) for t, p, lvl in pre[:-1]]
+        t_start = pre_bars
+    raw = _build(pattern, t_start, start_price, net_move, float(bars), depth)
+    waypoints += [(t_start, start_price, depth)] + raw
 
     # map to integer bars, strictly increasing
     bar_idx: list[int] = []

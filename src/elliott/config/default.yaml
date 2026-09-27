@@ -51,6 +51,8 @@ search:
   subwave_max_inner_pivots: 60   # mehr innere Pivots -> gröberer Grad für die Prüfung
   subwave_min_inner_motive: 4    # min. innere Pivots für eine 5er-Struktur
   subwave_min_inner_corrective: 2
+  subwave_validated_base: 0.4    # Wert einer validierten Welle: base + (1-base) * Qualität der Subzählung
+  subwave_fit_weight: 0.5        # Anteil der Qualität, der von der Abdeckung innerer Pivots abhängt
   irregular_start_max_excess: 0.3  # Korrekturwellen: Überschreitung des Startpunkts (irreguläre B) relativ zur Wellenlänge
   dedup_bar_tol: 3               # Zählungen gelten als gleich, wenn alle Wellenenden
   dedup_price_tol: 0.01          #   innerhalb dieser Toleranzen liegen (Preis relativ)
@@ -98,6 +100,8 @@ guidelines:
     proportionality: 1.0
     subwave_structure: 2.0
     completeness: 2.5
+    context: 2.0
+    significance: 1.0
   params:
     impulse_w2_range: [0.5, 0.618]
     impulse_w4_range: [0.236, 0.382]
@@ -127,6 +131,12 @@ guidelines:
     proportion_min_price_ratio: 0.08
     proportion_decay: 1.5          # Exponent des Abfalls jenseits der Grenzen
     momentum_min_rsi_diff: 2.0
+    pending_value: 0.7                 # noch nicht prüfbare Richtlinie (Welle fehlt/läuft) zählt neutral
+    running_wave_credit: 0.5           # laufende letzte Welle zählt als halbe Welle (Vollständigkeit)
+    subwave_not_validated_value: 0.5   # Wellen ohne feinere Pivots: halbe Punktzahl (fehlende Evidenz)
+    context_max_ratio: 1.0             # Korrektur <= 100 % der korrigierten Bewegung
+    context_decay: 1.5
+    significance_target: 0.5           # ab 50 % der Kursspanne volle Punktzahl
   penalties:                     # Punktabzug (0–100-Skala) für seltene Muster
     truncation: 15.0
     running_flat: 10.0
