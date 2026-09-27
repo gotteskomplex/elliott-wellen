@@ -14,10 +14,8 @@ def fmt_price(price: float) -> str:
     if not math.isfinite(price):
         return "–"
     a = abs(price)
-    if a >= 1000:
+    if a >= 1:
         text = f"{price:,.2f}"
-    elif a >= 1:
-        text = f"{price:,.2f}" if a >= 100 else f"{price:,.3f}"
     elif a == 0:
         text = "0"
     else:

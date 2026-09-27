@@ -247,6 +247,17 @@ def frame_to_market_data(
     if isinstance(frame.index, pd.DatetimeIndex):
         frame = frame.reset_index(names="date")
     mapping = _map_columns(frame)
+    if "date" not in mapping:
+        # Fallback: first unmapped column that parses as dates (e.g. an unnamed index column).
+        for col in frame.columns:
+            if col in mapping.values():
+                continue
+            try:
+                parse_dates(frame[col], cfg)
+            except DataValidationError:
+                continue
+            mapping["date"] = col
+            break
     if "close" not in mapping and "adj_close" in mapping:
         mapping["close"] = mapping["adj_close"]
     missing = [c for c in ("date", *PRICE_COLUMNS) if c not in mapping]

@@ -196,8 +196,12 @@ projection:
   path_ratio_index: 0            # welches Ziel der projizierte Pfad ansteuert (0 = Hauptziel)
 
 plotting:
-  scenario_colors: ["#1f77b4", "#ff7f0e", "#2ca02c", "#9467bd", "#8c564b", "#e377c2", "#17becf", "#bcbd22"]
+  # Kategoriale Reihenfolge (farbfehlsichtigkeits-validiert), feste Zuordnung je Rang
+  scenario_colors: ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"]
   invalidation_color: "#d62728"
+  subcount_opacity: 0.75
+  future_bars_min: 20            # Zukunftsbereich rechts im Chart (mind. Kerzen)
+  future_bars_ratio: 0.15        # bzw. Anteil der Chartlänge
   target_opacity: 0.18
   candle_up_color: "#26a69a"
   candle_down_color: "#ef5350"

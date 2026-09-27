@@ -197,6 +197,9 @@ class DegreeLabels(_Strict):
 class PlottingConfig(_Strict):
     scenario_colors: list[str]
     invalidation_color: str
+    subcount_opacity: float = Field(ge=0, le=1)
+    future_bars_min: int = Field(ge=0)
+    future_bars_ratio: float = Field(ge=0)
     target_opacity: float = Field(ge=0, le=1)
     candle_up_color: str
     candle_down_color: str
